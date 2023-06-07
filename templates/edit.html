@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Edit todo {{todo.task}}</title>
+    </head>
+    <body>
+        <h1>Edit task: {{todo.task}}</h1>
+        <form action="{{ url_for('edit', index=index) }}" method="post">
+            <input
+                type="text"
+                name="todo"
+                value="{{todo.task}}"
+                placeholder="Task name"
+            />
+            <input
+                type="text"
+                name="description"
+                value="{{todo.description}}"
+                placeholder="Task description"
+            />
+            <button type="submit">Save changes</button>
+        </form>
+        <a href="{{ url_for('index') }}">Back to homepage</a>
+    </body>
+</html>
