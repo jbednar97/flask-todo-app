@@ -1,21 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from mongoengine import *
-import pymongo
 from pymongo import MongoClient
 
-# docker-compose up tp start up the project with Docker
+# docker-compose up to start up the project with Docker
 
 app = Flask(__name__, template_folder="templates")
-
-todos = [{"task": "Create application", "description": "Application should be made in Flask, and have CRUD operations.",
-          "done": True}, {"task": "Get a review", "description": "Find out if this application matches expectations", "done": False}]
 
 
 def get_db():
     client = MongoClient(
         host='test_mongodb',
         port=27017,
-        user='root',
+        username='root',
         password='root',
         authSource='admin')
     db = client["todo_db"]
@@ -24,51 +19,71 @@ def get_db():
 
 @app.route("/")
 def index():
-    return render_template("index.html", todos=todos)
-
-
-@app.route("/todos")
-def fetch_todos():
     db = get_db()
     _todos = db.todo_tb.find()
-    todos = [{"id": todo["id"], "task":todo["task"],
+    todos = [{"task": todo["task"],
               "description":todo["description"], "done":todo["done"]} for todo in _todos]
-    return jsonify({"todos": todos})
+    return render_template("index.html", todos=todos)
+
+# Route for plain fetching todos, which will return json list of todos - unused, keeping for references
+# @app.route("/todos")
+# def fetch_todos():
+#     db = get_db()
+#     _todos = db.todo_tb.find()
+#     todos = [{"task": todo["task"],
+#               "description":todo["description"], "done":todo["done"]} for todo in _todos]
+#     return jsonify({"todos": todos})
 
 
 @app.route("/add", methods=["POST"])
 def add():
-    todo = request.form["todo"]
-    description = request.form['description']
-    todos.append({"task": todo, "description": description, "done": False})
+    db = get_db()
+    collection = db.todo_tb
+    data = {
+        "task": request.form["todo"],
+        "description": request.form["description"],
+        "done": False
+    }
+    collection.insert_one(data)
     return redirect(url_for("index"))
 
 
-@app.route('/edit/<int:index>', methods=["GET", "POST"])
-def edit(index):
-    todo = todos[index]
+@app.route('/edit/<string:task>', methods=["GET", "POST"])
+def edit(task):
+    db = get_db()
+    collection = db.todo_tb
+    todo = collection.find_one({"task": task})
     if request.method == "POST":
-        todo['task'] = request.form["todo"]
+        print(request.form["todo"])
+        collection.update_one({"task": task}, {"$set": {
+                              "task": request.form["todo"], "description": request.form["description"]}})
         return redirect(url_for("index"))
     else:
-        return render_template("edit.html", todo=todo, index=index)
+        return render_template("edit.html", todo=todo)
 
 
-@app.route("/check/<int:index>")
-def check(index):
-    todos[index]['done'] = not todos[index]['done']
+@app.route("/check/<string:task>")
+def check(task):
+    db = get_db()
+    collection = db.todo_tb
+    todo = collection.find_one({"task": task})
+    collection.update_one({"task": task}, {"$set": {"done": not todo["done"]}})
     return redirect(url_for("index"))
 
 
-@app.route("/delete/<int:index>")
-def delete(index):
-    del todos[index]
+@app.route("/delete/<string:task>")
+def delete(task):
+    db = get_db()
+    collection = db.todo_tb
+    collection.delete_one({"task": task})
     return redirect(url_for("index"))
 
 
 @app.route("/delete-all")
 def delete_all():
-    todos.clear()
+    db = get_db()
+    collection = db.todo_tb
+    collection.delete_many({})
     return redirect(url_for("index"))
 
 
